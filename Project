@@ -1,0 +1,348 @@
+
+//Jacob Laxamana
+//Student ID
+// Description: Nanobot in bloodstream game.game The immune system of a person
+// is controlled by a nanorobot that defends the cells to fight infections
+// Player is a robotic nanobot fighting microscopic threats.
+// I want the robot to have a vaccum that sucks the diseases
+
+// Global Variables
+//nanobot player
+float xplayerPos, yplayerPos; //player position
+color baseColor;
+color activeColor; //glowing
+boolean isActive = false;
+float playerSpeed = 5; //speed of the player
+
+//cells in the bloodstream
+int numCells = 50; // number of cells
+float[] x = new float[numCells];
+float[] y = new float[numCells];
+float[] xspeedCell = new float[numCells];
+float[] yspeedCell = new float[numCells];
+color[] cellColors = new color[numCells];
+int[] typeCells = new int[numCells]; // store type of cell
+int cellSize = 30; // size of each cell
+boolean isPaused = false;
+
+// Cell Types - Assigned by numbers
+int redbloodCell = 0;
+int Macrophage = 1;
+int Dendritic = 2;
+int Bacteria = 3;
+int Tcell = 4;
+
+//Gameplay Variables
+int gameplayState = 0; // 0 = start screen, 1 = playing, 2 = game over
+int score = 0;
+int targetScore = 30;
+int gameplayLooptimersecs = 30; //how long the game lasts in secs
+int startTimer; //current round starts
+
+void setup() {
+  size(600, 600);
+  xplayerPos = width / 2;
+  yplayerPos = height / 2;
+  baseColor = color(255); // white
+  activeColor = color(15, 101, 165); // glowing blue, showing its active
+  initializeCells(x, y, xspeedCell, yspeedCell, cellColors);
+}
+
+void draw() {
+  background(95, 19, 52); // bloodstream
+
+  if (gameplayState == 0) {
+    //start screen
+    fill(255);
+    textAlign(CENTER);
+    textSize(50);
+    text("NeutraliCell", width/2, height/2 - 40);
+    textSize(25);
+    text("SPACE to neutralise", width/2, height/2);
+
+    if (keyPressed && key == ' ') {
+      gameplayState = 1;
+      startTimer = millis(); // mark when game starts
+      score = 0; //reset score
+    }
+  } else if (gameplayState == 1) {
+
+    //game evironment
+    drawBloodstreamEvironment();
+
+    //nanobot player
+    drawNanobot(xplayerPos, yplayerPos, isActive);
+    playerMovement();
+
+    //cells features
+    drawCells(x, y, cellColors);
+    cellMovement(x, y, xspeedCell, yspeedCell, isPaused);
+
+    //collision dectection
+    collisionDetection();
+
+    //game HUD - score, timer
+    drawHUD();
+
+    //timer end conditions
+    int elapsed = (millis() - startTimer) / 1000;
+    int remaining = gameplayLooptimersecs - elapsed;
+    if (remaining <= 0) {
+      gameplayState = 2; //time's up - > game over
+    }
+    if (score >= targetScore) {
+      gameplayState = 2;  //win condition
+    } 
+  }
+  else if (gameplayState == 2) {
+      // game over
+      fill(255);
+      textAlign(CENTER);
+      textSize(50);
+      text("Finished!", width/2, height/2 - 40);
+      textSize(25);
+      text("Score: " + score, width/2, height/2);
+      text("Press N to Neutralise again", width/2, height/2 + 40);
+
+      if (keyPressed && (key == 'n' || key == 'N')) {
+        gameplayState = 0; //back to startscreen;
+      }
+    }
+  }
+  //bloodstream evironment
+  void drawBloodstreamEvironment() {
+    //wound
+    fill(247, 50, 32);
+    beginShape(TRIANGLES);
+    vertex(0, 0);
+    vertex(-150, 25);
+    vertex(150, 150);
+    endShape();
+
+    fill(152, 34, 21);
+    beginShape(TRIANGLES);
+    vertex(0, 0);
+    vertex(0, 50);
+    vertex(300, 150);
+    endShape();
+    //use triangle shape as the pentration of the skin
+    //plasma particles
+    for (int i = 0; i < 20; i++) {
+      float plasmaX = random(width);
+      float plasmaY = random(height);
+      float particleSize = 8;
+      fill(201, 53, 117); // particle colors
+      noStroke();
+      ellipse(plasmaX, plasmaY, particleSize, particleSize);
+    }
+
+    //veins
+
+    float veinstartX = random(width);
+    float veinstartY = random(height);
+    float veinendX = veinstartX + width / 2;
+    float veinendY = veinstartY + height / 2;
+    stroke(255, 0, 0, 50);
+    strokeWeight(10);
+    line(veinstartX, veinstartY, veinendX, veinendY);
+  }
+
+  //player character - nanobot
+  void drawNanobot(float posX, float posY, boolean glowing) {
+    //main color
+    fill(baseColor);
+    rectMode(CENTER);
+    rect(posX, posY-20, 60, 50, 8);
+
+    //main color
+    if (glowing) {
+      fill(activeColor);
+    } else {
+      fill(baseColor);
+    }
+    ellipse(posX-15, posY-25, 5, 10);
+    stroke(0);
+    ellipse(posX, posY+20, 12, 12);
+
+    //mouth (smile)
+    stroke(0);
+    strokeWeight(5);
+    arc(posX, posY-5, 15, 3, 0, PI);
+    strokeWeight(1);
+
+    //body
+    rect(posX, posY+20, 35, 30, 5);
+
+    //antennas (maybe ears instead make it cute)
+    line(posX-15, posY-40, posX-25, posY-55);
+    line(posX+15, posY-40, posX+25, posY-55);
+
+    //eyes (big glowing)
+    if (glowing) {
+      fill(15, 101, 165); //brighter glowing
+    } else {
+      fill(10);
+    }
+    ellipse(posX-15, posY-25, 20, 25);
+    ellipse(posX+15, posY-25, 20, 25);
+
+    fill(15, 101, 165);
+    ellipse(posX+15, posY-22, 10, 18);
+    ellipse(posX-15, posY-22, 10, 18);
+
+    //arms
+    fill(255);
+    rect(posX-25, posY+20, 12, 6);//left arm
+    rect(posX+25, posY+20, 12, 6); //right arm
+
+    //hands
+    ellipse(posX-32, posY+20, 10, 10);
+    ellipse(posX+32, posY+20, 10, 10);
+  }
+  void playerMovement() {
+    isActive = false;
+    if (keyPressed) {
+      if (key == 'w' || keyCode == UP) {
+        yplayerPos -= playerSpeed;
+        isActive = true;
+      }
+      if (key == 's' || keyCode == DOWN) {
+        yplayerPos += playerSpeed;
+        isActive = true;
+      }
+      if (key == 'a' || keyCode == LEFT) {
+        xplayerPos -= playerSpeed;
+        isActive = true;
+      }
+      if (key == 'd' || keyCode == RIGHT) {
+        xplayerPos += playerSpeed;
+        isActive = true;
+      }
+    }
+
+    xplayerPos = constrain(xplayerPos, 30, width - 30);
+    yplayerPos = constrain(yplayerPos, 50, height - 30);
+  }
+
+
+
+
+  //cells floating around the bloodstream
+  void cellMovement(float[] x, float[] y, float[] xspeedCell, float[] yspeedCell, boolean isPaused) {
+    if (isPaused) return;
+    for (int i = 0; i < numCells; i++) { //loop
+      x[i] += xspeedCell[i];
+      y[i] += yspeedCell[i];
+
+      //bounce off the screen
+      if (x[i] < 0 || x[i] > width - cellSize) {
+        xspeedCell[i] *= -1; //bounce horizontally
+      }
+      if (y[i] < 0 || y[i] > height - cellSize) {
+        yspeedCell[i] *= -1; //bounce vertically
+      }
+    }
+  }
+
+  void drawCells(float[] x, float[] y, color[] cellColors) {
+    for (int i = 0; i < numCells; i++) {
+      fill(cellColors[i]);
+      noStroke();
+
+      //choose visuals to spawn based on the cell's type
+      if (typeCells[i] == 0) { //red blood cell
+        ellipse(x[i], y[i], cellSize, cellSize); //cell body
+        ellipse(x[i], y[i], 8, 8);
+        fill(196, 146, 154);
+        ellipse(x[i], y[i], 10, 10);
+        ellipse(x[i], y[i]+5, 5, 5);
+        ellipse(x[i]+5, y[i], 5, 5);
+        ellipse(x[i]+3, y[i]-5, 5, 5);
+        ellipse(x[i]-3, y[i]+5, 5, 5);
+        line(x[i], y[i], 30, 1);
+        
+      } else if (typeCells[i] == 1) { //macrophage -"amoeba visuals" + soft inner shading
+        ellipse(x[i], y[i], cellSize + 10, cellSize + 10); //outer body
+
+        ellipse(x[i], y[i], cellSize, cellSize);//dendritic -inner shaded disc
+      } else if (typeCells[i] == 2) { // circular body + spiky dendrites
+        ellipse(x[i], y[i], cellSize, cellSize); //central body
+        stroke(cellColors[i]); //outline color for dendrites
+
+        for (int dendrites = 0; dendrites < 6; dendrites++) { //draw 6
+          float angle = random(TWO_PI); //random directions
+          // to end the line, = centre + unit vector * length
+          line(x[i], y[i], x[i] + cos(angle) * cellSize, y[i] + sin(angle) * cellSize);
+        }
+        noStroke(); //turn outlines off for next cell
+      } else if (typeCells[i] == 3) { // Bacteria
+        ellipse(x[i], y[i], cellSize, cellSize); //cell body
+        fill(255); //white dots
+        for (int j = 0; j < 3; j++) {
+          ellipse(x[i] + random(-10, 10), y[i] + random(-10, 10), 4, 4); // 3 random dots in the cell
+        }
+      } else if (typeCells[i] == 4) { // T-cell -small yellow "antibody" dots around it
+        ellipse(x[i], y[i], cellSize, cellSize); //cell body
+        fill(255, 255, 0); // yellow dots
+        for (int j = 0; j < 6; j++) { // 6 dots, wide spread
+          ellipse(x[i] + random(-15, 15), y[i] + random(-15, 15), 3, 3);
+        }
+      }
+    }
+  }
+  void drawHUD() {
+    fill(255);
+    textAlign(LEFT);
+    textSize(25);
+
+    int elapsed = (millis() - startTimer) / 1000;
+    int remaining = gameplayLooptimersecs - elapsed;
+
+    text("Bacteria killed: " + score, 20, 20);
+    text("Time: " + remaining, 20, 40);
+  }
+
+  void collisionDetection() {
+    for (int i = 0; i < numCells; i++) {
+      float d = dist(xplayerPos, yplayerPos, x[i], y[i]);
+      if (d < cellSize) {
+        if (typeCells[i] == 3) {
+          // enemy types - > absorbed
+          score++;
+          //random cell spawns at a new random position
+          x[i] = random(width);
+          y[i] = random(height);
+        }
+      }
+    }
+  }
+  // all cells starting pos, speeds and type
+  void initializeCells(float[] x, float[] y, float[] xspeedCell, float[] yspeedCell, color[] cellColors) {
+    for (int i = 0; i < numCells; i++) {
+      x[i] = random(width); // random positions
+      y[i] = random(height);
+      xspeedCell[i] = random(2, 5);
+      yspeedCell[i] = random(2, 5);
+
+      float r = random(1);
+      if (r < 0.5) { // 50% chance
+        typeCells[i] = 0;  //red blood cell
+        cellColors[i] = color(131, 9, 28); // dark red
+      } else if (r < 0.25) { //25% chance
+        typeCells[i] = 1; //macrophage
+        cellColors[i] = color(255); // dark blue
+      } else if (r < 0.6) { //60% chance
+        typeCells[i] = 2; //dendritic
+        cellColors[i] = color(255, 165, 0); // color - choose diff
+      } else if (r < 0.8) { //80% chance
+        typeCells[i] = 3; // Bacteria
+        cellColors[i] = color(74, 160, 58);// color - choose diff
+      } else {
+        typeCells[i] = 4; // T cell
+        cellColors[i] = color(37, 67, 108);
+      }
+    }
+  }
+// game ideas
+//once you hit 30 game won
+//if not game over
